@@ -19,6 +19,7 @@
 import { MessagePool } from "./../../js-message/globals/message.js"
 import { evShow, evHide } from "./../../js-display/globals/display.js"
 import { getTickCounter } from "./../../../include/time.js"
+import { CurveFunction, CurveLinear, TimeFunction, TimeForward, TimeValue } from "./../modules/function.js";
 
 export const evAnimation = 'evAnimation';
 
@@ -90,3 +91,70 @@ export function registerAnimation(fnHandler) {
 export function unregisterAnimation(fnHandler) {
 	MessagePool.unregister(evAnimation, fnHandler);
 }
+
+export class ValueAnimator {
+	/**
+	 * 
+	 * @param {number} fStartTime 
+	 * @param {number} fDuration 
+	 * @param {CurveFunction=} oCurveFunction 
+	 * @param {TimeFunction=} oTimeFunction
+	 */
+	constructor(fStartTime, fDuration, oCurveFunction, oTimeFunction) {
+		this.evStart = this.onStart.bind(this);
+		this.evStop = this.onStop.bind(this);
+		
+		this.oTimeValue = new TimeValue(fStartTime, fDuration, this.evStart, this.evStop);
+
+		this.oCurveFunction = oCurveFunction || CurveLinear;
+		this.oTimeFunction = oTimeFunction || TimeForward;
+
+		this.evAnimation = this.onAnimation.bind(this);
+
+		/** @type {number | null} */ this.fLastValue = null;
+		
+		registerAnimation(this.evAnimation);
+	}
+
+	stop() {
+		this.oTimeValue.stop();
+	}
+
+	pause() {
+		this.oTimeValue.pause();
+	}
+
+	resume() {
+		this.oTimeValue.resume();
+	}
+
+	/**
+	 * @private
+	 * @param {number} iAnimationTime 
+	 * @param {number} iInterval 
+	 */
+	onAnimation(iAnimationTime, iInterval) {
+		let fPercent = this.oTimeFunction(this.oTimeValue, iAnimationTime);
+		let fValue = this.oCurveFunction.getY(fPercent || 0);
+		if (this.fLastValue !== fValue) {
+			this.fLastValue = fValue;
+		}
+		console.log(iAnimationTime, fPercent, fValue);
+	}
+
+	/**
+	 * @private
+	 */
+	onStart() {
+
+	}
+
+	/**
+	 * @private
+	 */
+	onStop() {
+		unregisterAnimation(this.evAnimation);
+	}
+}
+
+//new ValueAnimator(getTickCounter() + 100, 100, CurveEaseInOut, TimeForward);
