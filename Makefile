@@ -19,7 +19,7 @@ $(error Use make only inside Project dir, submake requires variable imports)
 endif
 
 # List of Libraries to include
-LIB_LIST=js-message
+LIB_LIST=js-message js-display
 
 # Main entry point
 # This file executed after all modules

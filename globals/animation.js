@@ -17,7 +17,7 @@
 'use strict';
 
 import { MessagePool } from "./../../js-message/globals/message.js"
-import { bindEvent } from "./../../../include/event.js"
+import { evShow, evHide } from "./../../js-display/globals/display.js"
 
 /** @type {function(function())} */
 const fnRequestAnimFrame =
@@ -28,53 +28,41 @@ const fnRequestAnimFrame =
 	platform.msRequestAnimationFrame ||
 	function(callback) { platform.setTimeout(callback, 1000 / 30); };
 
-const oVisibilityEventMap = {
-	'focus': true,
-	'focusin': true,
-	'pageshow': true,
-	'blur': false,
-	'focusout': false,
-	'pagehide': false
-};
+let bRunning = false;
+let iFrameTime = 0;
+let bInvalidFrame = false;
+let iLastTime = 0;
 
-let sHiddenFunction = 'hidden';
+/*
+function onFrame() {
+	let iTime = getTickCounter();
+	this.iFrameTime = iTime;
+	this.oCore.event(Event.evFrame, this.oContext, this.iLastTime == 0 ? 0 : (iTime - this.iLastTime));
+	this.iLastTime = iTime;
 
-/**
- * @this {*}
- * @param {Event | {type: string}} oEvent 
- */
-function onVisibilityChange(oEvent) {
-	oEvent = oEvent || window.event;
-	/** @type {boolean} */ let bVisible;
-	if (oEvent.type in oVisibilityEventMap)
-		bVisible = oVisibilityEventMap[oEvent.type];
-	else
-		bVisible = this[sHiddenFunction] ? false : true;
-	
-	if (bVisible)
-		MessagePool.post('evShow');
-	else
-		MessagePool.post('evHide');
+	this.bInvalidFrame = false;
+	this.requestFrame();
 }
 
-// Modern Browsers
-if (platform.document === undefined)
-	onVisibilityChange.call(platform, {'type': 'blur'});
-else if (sHiddenFunction in platform.document)
-	platform.document.addEventListener('visibilitychange', onVisibilityChange);
-else if ((sHiddenFunction = 'mozHidden') in document)
-	platform.document.addEventListener('mozvisibilitychange', onVisibilityChange);
-else if ((sHiddenFunction = 'webkitHidden') in document)
-	platform.document.addEventListener('webkitvisibilitychange', onVisibilityChange);
-else if ((sHiddenFunction = 'msHidden') in document)
-	platform.document.addEventListener('msvisibilitychange', onVisibilityChange);
-// IE <= 9:
-else if ('onfocusin' in document)
-	platform.document.onfocusin = platform.document.onfocusout = onVisibilityChange;
-// Other Browsers:
-else
-	platform.onpageshow = platform.onpagehide = platform.onfocus = platform.onblur = onVisibilityChange;
+requestFrame() {
+	if (!this.bInvalidFrame) {
+		this.bInvalidFrame = true;
+		this.fnRequestAnimFrame.call(window, this.onFrameCallback);
+	}
+}
+*/
 
-// Detect initial state
-if ((platform.document !== undefined) && (platform.document[sHiddenFunction] !== undefined))
-	onVisibilityChange.call(platform.document, {'type': platform.document[sHiddenFunction] ? 'blur' : 'focus'});
+function onAnimationResume() {
+	if (!bRunning) {
+		bRunning = true;
+	}
+}
+
+function onAnimationPause() {
+	if (bRunning) {
+		bRunning = false;
+	}
+}
+
+MessagePool.register(evShow, onAnimationResume);
+MessagePool.register(evHide, onAnimationPause);

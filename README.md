@@ -1,6 +1,7 @@
-# Screen Synchronized Animation Core PWA Library
+# Display Synchronized Animation Core PWA Library
 
 **Depends on [js-message](https://github.com/SergioRando/js-message) Library**
+**Depends on [js-display](https://github.com/SergioRando/js-display) Library**
 
 This is library for a fork project of [PWA](https://github.com/SergioRando/PWA)
 
