@@ -33,6 +33,7 @@ MODULES=$(patsubst ./%,%,$(shell find ./modules -type f -name "*.js"))
 
 # List of external modules, executed only if included in main or global modules
 define EXTERNAL
+	src/include/time.js
 	src/include/event.js
 endef
 

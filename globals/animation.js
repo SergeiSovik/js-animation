@@ -18,6 +18,9 @@
 
 import { MessagePool } from "./../../js-message/globals/message.js"
 import { evShow, evHide } from "./../../js-display/globals/display.js"
+import { getTickCounter } from "./../../../include/time.js"
+
+export const evAnimation = 'evAnimation';
 
 /** @type {function(function())} */
 const fnRequestAnimFrame =
@@ -29,32 +32,35 @@ const fnRequestAnimFrame =
 	function(callback) { platform.setTimeout(callback, 1000 / 30); };
 
 let bRunning = false;
-let iFrameTime = 0;
-let bInvalidFrame = false;
+let iAnimationTime = 0;
+let bInvalidAnimation = false;
 let iLastTime = 0;
 
-/*
-function onFrame() {
+function onAnimation() {
 	let iTime = getTickCounter();
-	this.iFrameTime = iTime;
-	this.oCore.event(Event.evFrame, this.oContext, this.iLastTime == 0 ? 0 : (iTime - this.iLastTime));
-	this.iLastTime = iTime;
+	iAnimationTime = iTime;
+	MessagePool.recv(evAnimation, iAnimationTime, iLastTime === 0 ? 0 : (iTime - iLastTime));
+	iLastTime = iTime;
 
-	this.bInvalidFrame = false;
-	this.requestFrame();
+	bInvalidAnimation = false;
+	requestAnimation();
 }
 
-requestFrame() {
-	if (!this.bInvalidFrame) {
-		this.bInvalidFrame = true;
-		this.fnRequestAnimFrame.call(window, this.onFrameCallback);
+function requestAnimation() {
+	if ((bRunning) && (!bInvalidAnimation)) {
+		if (MessagePool.has(evAnimation)) {
+			bInvalidAnimation = true;
+			fnRequestAnimFrame.call(window, onAnimation);
+		} else {
+			iLastTime = 0;
+		}
 	}
 }
-*/
 
 function onAnimationResume() {
 	if (!bRunning) {
 		bRunning = true;
+		requestAnimation();
 	}
 }
 
@@ -66,3 +72,21 @@ function onAnimationPause() {
 
 MessagePool.register(evShow, onAnimationResume);
 MessagePool.register(evHide, onAnimationPause);
+MessagePool.excludeLog(false, evAnimation);
+
+/**
+ * Register animation handler
+ * @param {Function} fnHandler function(iAnimationTime, iInterval)
+ */
+export function registerAnimation(fnHandler) {
+	MessagePool.register(evAnimation, fnHandler);
+	requestAnimation();
+}
+
+/**
+ * Unregister animation handler
+ * @param {Function} fnHandler function(iAnimationTime, iInterval)
+ */
+export function unregisterAnimation(fnHandler) {
+	MessagePool.unregister(evAnimation, fnHandler);
+}
