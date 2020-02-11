@@ -19,7 +19,7 @@
 import { MessagePool } from "./../../js-message/globals/message.js"
 import { evShow, evHide } from "./../../js-display/globals/display.js"
 import { getTickCounter } from "./../../../include/time.js"
-import { CurveFunction, CurveLinear, TimeFunction, TimeForward, TimeValue } from "./../modules/function.js";
+import { CurveFunction, CurveLinear, CurveEaseInOut } from "./../modules/function.js";
 
 export const evAnimation = 'evAnimation';
 
@@ -92,40 +92,155 @@ export function unregisterAnimation(fnHandler) {
 	MessagePool.unregister(evAnimation, fnHandler);
 }
 
-export class ValueAnimator {
+export class Animation {
 	/**
-	 * 
-	 * @param {number} fStartTime 
-	 * @param {number} fDuration 
+	 * @param {number} fTimeStart 
+	 * @param {number} fRepeatInterval 
+	 * @param {number} fRepeatDirection
 	 * @param {CurveFunction=} oCurveFunction 
-	 * @param {TimeFunction=} oTimeFunction
+	 * @param {Function=} fnStart
+	 * @param {Function=} fnStop
 	 */
-	constructor(fStartTime, fDuration, oCurveFunction, oTimeFunction) {
-		this.evStart = this.onStart.bind(this);
-		this.evStop = this.onStop.bind(this);
-		
-		this.oTimeValue = new TimeValue(fStartTime, fDuration, this.evStart, this.evStop);
+	constructor(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction, fnStart, fnStop) {
+		/** @private @type {number} */ this.fTimeStart;
+		/** @private @type {number} */ this.fTimeEnd;
+		/** @private @type {number | null} */ this.fTimePause;
+		/** @private @type {number} */ this.fRepeatInterval;
+		/** @private @type {number} */ this.fRepeatDirection;
+
+		/** @private @type {boolean} */ this.bRunning = false;
+		/** @private @type {boolean} */ this.bStarted;
+		/** @private @type {boolean} */ this.bEnded;
+		/** @private @type {boolean} */ this.bRequestEnd;
+
+		/** @private @type {number | null} */ this.fNextValue;
+		/** @private @type {number | null} */ this.fLastValue;
+
+		/** @private @type {CurveFunction} */ this.oCurveFunction;
+
+		/** @private */ this.fnStart = fnStart || null;
+		/** @private */ this.fnStop = fnStop || null;
+
+		/** @private */ this.evAnimation = this.onAnimation.bind(this);
+
+		this.start(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction || CurveLinear);
+	}
+
+	/**
+	 * @param {number} fTimeStart 
+	 * @param {number} fRepeatInterval 
+	 * @param {number} fRepeatDirection
+	 * @param {CurveFunction=} oCurveFunction 
+	 */
+	start(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction) {
+		this.fTimeStart = fTimeStart;
+
+		if (isFinite(fRepeatDirection)) {
+			this.fTimeEnd = fTimeStart + fRepeatInterval * Math.abs(fRepeatDirection);
+		} else {
+			this.fTimeEnd = Infinity;
+		}
+
+		this.fTimePause = null;
+		this.fRepeatInterval = fRepeatInterval;
+		this.fRepeatDirection = fRepeatDirection;
+
+		this.bStarted = false;
+		this.bEnded = false;
+		this.bRequestEnd = false;
+
+		this.fNextValue = null;
 
 		this.oCurveFunction = oCurveFunction || CurveLinear;
-		this.oTimeFunction = oTimeFunction || TimeForward;
 
-		this.evAnimation = this.onAnimation.bind(this);
-
-		/** @type {number | null} */ this.fLastValue = null;
-		
-		registerAnimation(this.evAnimation);
+		if (!this.bRunning) {
+			this.bRunning = true;
+			registerAnimation(this.evAnimation);
+		}
 	}
 
 	stop() {
-		this.oTimeValue.stop();
+		this.bRequestEnd = true;
 	}
 
-	pause() {
-		this.oTimeValue.pause();
+	/**
+	 * @param {number=} fTime 
+	 */
+	pause(fTime) {
+		if (this.fTimePause === null) {
+			this.fTimePause = fTime || getTickCounter();
+		}
 	}
 
-	resume() {
-		this.oTimeValue.resume();
+	/**
+	 * @param {number=} fTime
+	 */
+	resume(fTime) {
+		if (this.fTimePause !== null) {
+			let fTimeResume = fTime || getTickCounter();
+			
+			if (isFinite(this.fRepeatDirection)) {
+				if (fTimeResume <= this.fTimeStart) {
+					this.fTimePause = null;
+					return;
+				}
+
+				if (this.fTimePause < this.fTimeStart) {
+					this.fTimePause = this.fTimeStart;
+				}
+			}
+
+			let fInterval = fTimeResume - this.fTimePause;
+			this.fTimePause = null;
+			this.fTimeStart += fInterval;
+		}
+	}
+
+	/**
+	 * @param {number} fTime
+	 * @returns {number | null}
+	 */
+	next(fTime) {
+		if ((this.bEnded) || (this.fTimePause !== null))
+			return this.fNextValue;
+
+		let bFinite = isFinite(this.fRepeatDirection);
+		let bForward = Math.sign(this.fRepeatDirection) >= 0;
+
+		if (bFinite) {
+			if (fTime <= this.fTimeStart)
+				return (this.fNextValue = bForward ? 0 : 1);
+		}
+		
+		if (!this.bStarted) {
+			this.bStarted = true;
+			if (this.fnStart !== null) this.fnStart();
+		}
+
+		let fPercent = (fTime - this.fTimeStart) / this.fRepeatInterval;
+		let fPercentFraction = fPercent - Math.floor(fPercent);
+		/** @type {number} */ let fNext;
+
+		if (isNaN(this.fRepeatDirection)) {
+			fNext = 1 - Math.abs(fPercentFraction * 2 - 1);
+		} else if (bForward) {
+			fNext = fPercentFraction;
+		} else {
+			fNext = 1 - fPercentFraction;
+		}	
+
+		if ((this.bRequestEnd) || ((bFinite) && (fTime >= this.fTimeEnd))) {
+			if (!this.bRequestEnd)
+				fNext = bForward ? 1 : 0;
+
+			if (!this.bEnded) {
+				this.bEnded = true;
+				if (this.fnStop !== null) this.fnStop();
+				unregisterAnimation(this.evAnimation);
+			}			
+		}
+
+		return (this.fNextValue = fNext);
 	}
 
 	/**
@@ -134,27 +249,13 @@ export class ValueAnimator {
 	 * @param {number} iInterval 
 	 */
 	onAnimation(iAnimationTime, iInterval) {
-		let fPercent = this.oTimeFunction(this.oTimeValue, iAnimationTime);
-		let fValue = this.oCurveFunction.getY(fPercent || 0);
+		let fNextValue = this.next(iAnimationTime);
+		let fValue = this.oCurveFunction.getY(fNextValue || 0);
 		if (this.fLastValue !== fValue) {
 			this.fLastValue = fValue;
 		}
-		console.log(iAnimationTime, fPercent, fValue);
-	}
-
-	/**
-	 * @private
-	 */
-	onStart() {
-
-	}
-
-	/**
-	 * @private
-	 */
-	onStop() {
-		unregisterAnimation(this.evAnimation);
+		console.log(iAnimationTime, fNextValue, fValue);
 	}
 }
 
-//new ValueAnimator(getTickCounter() + 100, 100, CurveEaseInOut, TimeForward);
+new Animation(getTickCounter() + 100, 100, 1, CurveEaseInOut, null, null);
