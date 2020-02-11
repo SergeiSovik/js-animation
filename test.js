@@ -16,4 +16,36 @@
 
 "use strict";
 
+import { CurveLinear, CurveEaseIn, CurveEaseOut, CurveEaseInOut } from "./modules/function.js";
+
 platform.console.log('js-animation', 'Skip Test');
+
+console.log("");
+console.log("Linear");
+for (let i = 0; i <= 10; i++) {
+	let x = i / 10;
+	console.log(x.toFixed(3), CurveLinear.getY(x).toFixed(3));
+}
+
+console.log("");
+console.log("EaseIn");
+for (let i = 0; i <= 10; i++) {
+	let x = i / 10;
+	console.log(x.toFixed(3), CurveEaseIn.getY(x).toFixed(3));
+}
+
+console.log("");
+console.log("EaseOut");
+for (let i = 0; i <= 10; i++) {
+	let x = i / 10;
+	console.log(x.toFixed(3), CurveEaseOut.getY(x).toFixed(3));
+}
+
+console.log("");
+console.log("EaseInOut");
+for (let i = 0; i <= 10; i++) {
+	let x = i / 10;
+	console.log(x.toFixed(3), CurveEaseInOut.getY(x).toFixed(3));
+}
+
+console.log("");

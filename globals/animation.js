@@ -92,58 +92,62 @@ export function unregisterAnimation(fnHandler) {
 	MessagePool.unregister(evAnimation, fnHandler);
 }
 
+/**
+ * @abstract
+ */
 export class Animation {
 	/**
-	 * @param {number} fTimeStart 
-	 * @param {number} fRepeatInterval 
-	 * @param {number} fRepeatDirection
+	 * @param {number=} fTimeStart 
+	 * @param {number=} fInterval 
+	 * @param {number=} fDirection
+	 * @param {number=} fCount
 	 * @param {CurveFunction=} oCurveFunction 
-	 * @param {Function=} fnStart
-	 * @param {Function=} fnStop
 	 */
-	constructor(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction, fnStart, fnStop) {
-		/** @private @type {number} */ this.fTimeStart;
-		/** @private @type {number} */ this.fTimeEnd;
-		/** @private @type {number | null} */ this.fTimePause;
-		/** @private @type {number} */ this.fRepeatInterval;
-		/** @private @type {number} */ this.fRepeatDirection;
+	constructor(fTimeStart, fInterval, fDirection, fCount, oCurveFunction) {
+		/** @private @type {number} */ this.fTimeStart = 0;
+		/** @private @type {number} */ this.fTimeEnd = 0;
+		/** @private @type {number | null} */ this.fTimePause = null;
+		/** @private @type {number} */ this.fInterval = 1;
+		/** @private @type {number} */ this.fDirection = 1;
+		/** @private @type {number} */ this.fCount = 1;
 
 		/** @private @type {boolean} */ this.bRunning = false;
-		/** @private @type {boolean} */ this.bStarted;
-		/** @private @type {boolean} */ this.bEnded;
-		/** @private @type {boolean} */ this.bRequestEnd;
+		/** @private @type {boolean} */ this.bStarted = false;
+		/** @private @type {boolean} */ this.bEnded = false;
+		/** @private @type {boolean} */ this.bRequestEnd = false;
 
-		/** @private @type {number | null} */ this.fNextValue;
-		/** @private @type {number | null} */ this.fLastValue;
+		/** @private @type {number | null} */ this.fNextValue = null;
+		/** @private @type {number | null} */ this.fLastValue = null;
 
-		/** @private @type {CurveFunction} */ this.oCurveFunction;
-
-		/** @private */ this.fnStart = fnStart || null;
-		/** @private */ this.fnStop = fnStop || null;
+		/** @private @type {CurveFunction} */ this.oCurveFunction = CurveLinear;
 
 		/** @private */ this.evAnimation = this.onAnimation.bind(this);
 
-		this.start(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction || CurveLinear);
+		if (fTimeStart !== undefined) {
+			this.start(fTimeStart, fInterval || 1000, fDirection || NaN, fCount || Infinity, oCurveFunction || CurveLinear);
+		}
 	}
 
 	/**
 	 * @param {number} fTimeStart 
-	 * @param {number} fRepeatInterval 
-	 * @param {number} fRepeatDirection
+	 * @param {number} fInterval 
+	 * @param {number} fDirection
+	 * @param {number} fCount
 	 * @param {CurveFunction=} oCurveFunction 
 	 */
-	start(fTimeStart, fRepeatInterval, fRepeatDirection, oCurveFunction) {
+	start(fTimeStart, fInterval, fDirection, fCount, oCurveFunction) {
 		this.fTimeStart = fTimeStart;
 
-		if (isFinite(fRepeatDirection)) {
-			this.fTimeEnd = fTimeStart + fRepeatInterval * Math.abs(fRepeatDirection);
+		if (isFinite(fCount)) {
+			this.fTimeEnd = fTimeStart + fInterval * Math.abs(fCount);
 		} else {
 			this.fTimeEnd = Infinity;
 		}
 
 		this.fTimePause = null;
-		this.fRepeatInterval = fRepeatInterval;
-		this.fRepeatDirection = fRepeatDirection;
+		this.fInterval = fInterval;
+		this.fDirection = fDirection;
+		this.fCount = fCount;
 
 		this.bStarted = false;
 		this.bEnded = false;
@@ -169,6 +173,7 @@ export class Animation {
 	pause(fTime) {
 		if (this.fTimePause === null) {
 			this.fTimePause = fTime || getTickCounter();
+			this.onPause();
 		}
 	}
 
@@ -179,7 +184,7 @@ export class Animation {
 		if (this.fTimePause !== null) {
 			let fTimeResume = fTime || getTickCounter();
 			
-			if (isFinite(this.fRepeatDirection)) {
+			if (isFinite(this.fCount)) {
 				if (fTimeResume <= this.fTimeStart) {
 					this.fTimePause = null;
 					return;
@@ -193,6 +198,8 @@ export class Animation {
 			let fInterval = fTimeResume - this.fTimePause;
 			this.fTimePause = null;
 			this.fTimeStart += fInterval;
+
+			this.onResume();
 		}
 	}
 
@@ -204,26 +211,26 @@ export class Animation {
 		if ((this.bEnded) || (this.fTimePause !== null))
 			return this.fNextValue;
 
-		let bFinite = isFinite(this.fRepeatDirection);
-		let bForward = Math.sign(this.fRepeatDirection) >= 0;
+		let bFinite = isFinite(this.fCount);
+		let fDirection = isNaN(this.fDirection) ? 0 : Math.sign(this.fDirection);
 
 		if (bFinite) {
 			if (fTime <= this.fTimeStart)
-				return (this.fNextValue = bForward ? 0 : 1);
+				return (this.fNextValue = (fDirection >= 0) ? 0 : 1);
 		}
 		
 		if (!this.bStarted) {
 			this.bStarted = true;
-			if (this.fnStart !== null) this.fnStart();
+			this.onStart();
 		}
 
-		let fPercent = (fTime - this.fTimeStart) / this.fRepeatInterval;
+		let fPercent = (fTime - this.fTimeStart) / this.fInterval;
 		let fPercentFraction = fPercent - Math.floor(fPercent);
 		/** @type {number} */ let fNext;
 
-		if (isNaN(this.fRepeatDirection)) {
+		if (fDirection == 0) {
 			fNext = 1 - Math.abs(fPercentFraction * 2 - 1);
-		} else if (bForward) {
+		} else if (fDirection > 0) {
 			fNext = fPercentFraction;
 		} else {
 			fNext = 1 - fPercentFraction;
@@ -231,11 +238,11 @@ export class Animation {
 
 		if ((this.bRequestEnd) || ((bFinite) && (fTime >= this.fTimeEnd))) {
 			if (!this.bRequestEnd)
-				fNext = bForward ? 1 : 0;
+				fNext = (fDirection > 0) ? 1 : 0;
 
 			if (!this.bEnded) {
 				this.bEnded = true;
-				if (this.fnStop !== null) this.fnStop();
+				this.onStop();
 				unregisterAnimation(this.evAnimation);
 			}			
 		}
@@ -253,9 +260,34 @@ export class Animation {
 		let fValue = this.oCurveFunction.getY(fNextValue || 0);
 		if (this.fLastValue !== fValue) {
 			this.fLastValue = fValue;
+			this.onAnimate(fNextValue || 0, fValue);
 		}
-		console.log(iAnimationTime, fNextValue, fValue);
 	}
-}
 
-new Animation(getTickCounter() + 100, 100, 1, CurveEaseInOut, null, null);
+	/**
+	 * @abstract
+	 * @param {number} fX
+	 * @param {number} fY
+	 */
+	onAnimate(fX, fY) {}
+
+	/**
+	 * @abstract
+	 */
+	onStart() {}
+
+	/**
+	 * @abstract
+	 */
+	onStop() {}
+
+	/**
+	 * @abstract
+	 */
+	onPause() {}
+
+	/**
+	 * @abstract
+	 */
+	onResume() {}
+}

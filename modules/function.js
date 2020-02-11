@@ -82,6 +82,31 @@ const BezierCurveFunctionLUTCount = 600;
 const aXtemp = /** @type {Array<number>} */ ( platform.FixedDoubleArray(BezierCurveFunctionFractions + 1) );
 const aYtemp = /** @type {Array<number>} */ ( platform.FixedDoubleArray(BezierCurveFunctionFractions + 1) );
 
+/**
+ * Calculate factorial
+ * @param {number} iValue 
+ */
+function factorial(iValue){
+	let iResult = 1;
+	for(let iIndex = iValue; iIndex > 0; iIndex--) {
+		iResult *= iIndex;
+	}
+	return iResult;
+}
+
+/**
+ * Calculate Bernstain basis
+ * @param {number} iIndex 
+ * @param {number} iLast 
+ * @param {number} fFraction 
+ */
+function bernstein(iIndex, iLast, fFraction){
+	let iResult = factorial(iLast) / (factorial(iIndex) * factorial(iLast - iIndex));
+	iResult *= Math.pow(fFraction, iIndex);
+	iResult *= Math.pow(1 - fFraction, iLast - iIndex);
+	return iResult;
+}
+
 export class BezierCurveFunction extends CurveFunction {
 	/**
 	 * @param {Array<number>} aPoints
@@ -101,16 +126,19 @@ export class BezierCurveFunction extends CurveFunction {
 			this.aX[iIndex] = aPoints[iIndex * 2];
 			this.aY[iIndex] = aPoints[iIndex * 2 + 1];
 		}
-		
+
 		let iLast = this.iCount - 1;
+
 		for (let iFraction = BezierCurveFunctionFractions; iFraction >= 0; iFraction--) {
-			/** @type {number} */ let bX = 0;
+				/** @type {number} */ let bX = 0;
 			/** @type {number} */ let bY = 0;
 			let fFraction = iFraction / BezierCurveFunctionFractions;
 			for (let iIndex = iLast; iIndex >= 0; iIndex--) {
-				let fFractionCoefficient = Math.pow(1 - fFraction, iLast - iIndex) * Math.pow(fFraction, iIndex);
-				bX += fFractionCoefficient * this.aX[iIndex];
-				bY += fFractionCoefficient * this.aY[iIndex];
+				let fBernsteinBasis = bernstein(iIndex, iLast, fFraction);
+				let fX = fBernsteinBasis * this.aX[iIndex];
+				let fY = fBernsteinBasis * this.aY[iIndex];
+				bX += fX;
+				bY += fY;
 			}
 			aXtemp[iFraction] = bX;
 			aYtemp[iFraction] = bY;
