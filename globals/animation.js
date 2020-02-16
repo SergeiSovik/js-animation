@@ -271,23 +271,8 @@ export class Animation {
 	 */
 	onAnimate(fX, fY) {}
 
-	/**
-	 * @abstract
-	 */
 	onStart() {}
-
-	/**
-	 * @abstract
-	 */
 	onStop() {}
-
-	/**
-	 * @abstract
-	 */
 	onPause() {}
-
-	/**
-	 * @abstract
-	 */
 	onResume() {}
 }
