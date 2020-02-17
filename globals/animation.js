@@ -102,8 +102,9 @@ export class Animation {
 	 * @param {number=} fDirection
 	 * @param {number=} fCount
 	 * @param {CurveFunction=} oCurveFunction 
+	 * @param {function(number):number=} fnTimeFunction
 	 */
-	constructor(fTimeStart, fInterval, fDirection, fCount, oCurveFunction) {
+	constructor(fTimeStart, fInterval, fDirection, fCount, oCurveFunction, fnTimeFunction) {
 		/** @private @type {number} */ this.fTimeStart = 0;
 		/** @private @type {number} */ this.fTimeEnd = 0;
 		/** @private @type {number | null} */ this.fTimePause = null;
@@ -120,12 +121,20 @@ export class Animation {
 		/** @private @type {number | null} */ this.fLastValue = null;
 
 		/** @private @type {CurveFunction} */ this.oCurveFunction = CurveLinear;
+		/** @private */ this.fnTimeFunction = fnTimeFunction || null;
 
 		/** @private */ this.evAnimation = this.onAnimation.bind(this);
 
 		if (fTimeStart !== undefined) {
 			this.start(fTimeStart, fInterval || 1000, fDirection || NaN, fCount || Infinity, oCurveFunction || CurveLinear);
 		}
+	}
+
+	/**
+	 * @param {function(number):number | null} fnTimeFunction
+	 */
+	setTimeFunciton(fnTimeFunction) {
+		this.fnTimeFunction = fnTimeFunction;
 	}
 
 	/**
@@ -257,6 +266,11 @@ export class Animation {
 	 */
 	onAnimation(iAnimationTime, iInterval) {
 		let fNextValue = this.next(iAnimationTime);
+		if (this.fnTimeFunction !== null) {
+			let fUpdateValue = this.fnTimeFunction(fNextValue || 0);
+			//console.log(fNextValue.toFixed(3), fUpdateValue.toFixed(3))
+			fNextValue = fUpdateValue;
+		}
 		let fValue = this.oCurveFunction.getY(fNextValue || 0);
 		if (this.fLastValue !== fValue) {
 			this.fLastValue = fValue;
