@@ -18,7 +18,7 @@
 
 import { CurveLinear, CurveEaseIn, CurveEaseOut, CurveEaseInOut } from "./modules/function.js";
 
-platform.console.log('js-animation', 'Skip Test');
+//platform.console.log('js-animation', 'Skip Test');
 
 console.log("");
 console.log("Linear");
