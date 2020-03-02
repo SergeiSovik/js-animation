@@ -253,6 +253,7 @@ export class Animation {
 				this.bEnded = true;
 				this.onStop();
 				unregisterAnimation(this.evAnimation);
+				this.bRunning = false;
 			}			
 		}
 
