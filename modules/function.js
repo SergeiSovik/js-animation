@@ -16,7 +16,7 @@
 
 'use strict';
 
-import { getTickCounter } from "./../../../include/time.js";
+import { getTickCounter } from "./../../../include/time.js"
 
 /**
  * @abstract

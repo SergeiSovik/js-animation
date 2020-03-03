@@ -112,10 +112,10 @@ export class Animation {
 		/** @private @type {number} */ this.fDirection = 1;
 		/** @private @type {number} */ this.fCount = 1;
 
-		/** @private @type {boolean} */ this.bRunning = false;
-		/** @private @type {boolean} */ this.bStarted = false;
-		/** @private @type {boolean} */ this.bEnded = false;
-		/** @private @type {boolean} */ this.bRequestEnd = false;
+		/** @protected @type {boolean} */ this.bRunning = false;
+		/** @protected @type {boolean} */ this.bStarted = false;
+		/** @protected @type {boolean} */ this.bEnded = false;
+		/** @protected @type {boolean} */ this.bRequestEnd = false;
 
 		/** @private @type {number | null} */ this.fNextValue = null;
 		/** @private @type {number | null} */ this.fLastValue = null;
